@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling", "jupyterlab>=4.0.0,<5"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jupyterhub-gridlook"
+dynamic = ["version"]
+description = "Gridlook ESM viewer served via jupyter-server-proxy"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["jupyter-server-proxy>=4"]
+
+[project.optional-dependencies]
+test = [
+        "pytest",
+        "pytest-jupyter",
+        "pytest-cov",
+]
+
+[project.entry-points.jupyter_serverproxy_servers]
+gridlook = "jupyterhub_gridlook:setup_gridlook"
+
+[tool.hatch.version]
+path = "jupyterhub_gridlook/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["jupyterhub_gridlook"]
+artifacts = ["jupyterhub_gridlook/static/**"]   # ship static/ even though it's gitignored
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["jupyterhub_gridlook/labextension"]
+exclude = [".github", "binder"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"jupyterhub_gridlook/labextension" = "share/jupyter/labextensions/jupyterhub-gridlook"
+"jupyter-config/server-config" = "etc/jupyter/jupyter_server_config.d"
+
+[tool.hatch.build.hooks.jupyter-builder]
+dependencies = ["hatch-jupyter-builder>=0.5"]
+build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = [
+    "jupyterhub_gridlook/labextension/static/style.js",
+    "jupyterhub_gridlook/labextension/package.json",
+]
+skip-if-exists = ["jupyterhub_gridlook/labextension/static/style.js"]
+
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+build_cmd = "build:prod"
+npm = ["jlpm"]
+
+[tool.jupyter.server-extension]
+enabled = true
+
+[tool.hatch.build.hooks.jupyter-builder.editable-build-kwargs]
+build_cmd = "install:extension"
+npm = ["jlpm"]
+source_dir = "src"
+build_dir = "jupyterhub_gridlook/labextension"
+
+
+[tool.check-wheel-contents]
+ignore = ["W002"]
