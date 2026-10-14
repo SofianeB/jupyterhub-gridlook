@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"   # Gridlook needs >=24.16
+
+      - name: Build Gridlook assets
+        run: bash scripts/build_static.sh
+
+      - name: Build wheel and check contents
+        run: |
+          set -eux
+          python -m pip install -U build
+          python -m build --wheel
+          unzip -l dist/*.whl | grep "static/index.html"
+
+      - name: Install wheel and test
+        run: |
+          set -eux
+          python -m pip install "$(ls dist/*.whl)[test]"
+          pytest -vv -r ap --cov jupyterhub_gridlook
+
+      - name: Check entry point
+        run: |
+          python -c "from importlib.metadata import entry_points; eps = {e.name: e for e in entry_points(group='jupyter_serverproxy_servers')}; assert 'gridlook' in eps, 'Gridlook entry point missing'; eps['gridlook'].load()"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
